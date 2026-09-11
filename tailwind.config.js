@@ -9,6 +9,22 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        theme: {
+          bg: 'var(--bg-primary)',
+          surface: 'var(--bg-surface)',
+          card: 'var(--bg-card)',
+          cardHover: 'var(--bg-card-hover)',
+          subtle: 'var(--bg-subtle)',
+          border: 'var(--border-color)',
+          borderSubtle: 'var(--border-subtle)',
+          textPrimary: 'var(--text-primary)',
+          textSecondary: 'var(--text-secondary)',
+          textMuted: 'var(--text-muted)',
+          accent: 'var(--accent-amber)',
+          accentGlow: 'var(--accent-amber-glow)',
+          tagBg: 'var(--tag-bg)',
+          tagBorder: 'var(--tag-border)',
+        },
         bee: {
           50: '#fffbeb',
           100: '#fef3c7',

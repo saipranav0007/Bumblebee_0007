@@ -13,8 +13,27 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('bumblebee-theme') || 'dark';
+                  document.documentElement.setAttribute('data-theme', saved);
+                  if (saved === 'light') {
+                    document.documentElement.classList.add('light-mode');
+                  } else if (saved === 'worker') {
+                    document.documentElement.classList.add('worker-mode', 'dark');
+                  } else {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
