@@ -2,14 +2,19 @@
 
 import React from 'react';
 import { useBumblebee } from '../../lib/store';
-import { playBuzzAlert } from '../../lib/sound';
-import { AlertTriangle, BellRing, Volume2, ShieldAlert, X, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { stopContinuousBuzzAlert, startContinuousBuzzAlert } from '../../lib/sound';
+import { AlertTriangle, VolumeX, Volume2, ShieldAlert, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function BuzzAlertOverlay() {
   const { activeBuzzAlert, setActiveBuzzAlert } = useBumblebee();
 
   if (!activeBuzzAlert) return null;
+
+  const handleDismissAndSilence = () => {
+    stopContinuousBuzzAlert();
+    setActiveBuzzAlert(null);
+  };
 
   return (
     <aside aria-label="Critical Buzz Alert Notification" className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-3xl animate-buzz-strobe">
@@ -22,8 +27,8 @@ export default function BuzzAlertOverlay() {
             
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded uppercase tracking-wider">
-                  BUZZ ALERT
+                <span className="bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                  BUZZ ALERT ACTIVE
                 </span>
                 <span className="bg-red-500/20 text-red-300 font-mono text-xs px-2 py-0.5 rounded border border-red-500/30">
                   CRITICAL OUTAGE
@@ -44,7 +49,7 @@ export default function BuzzAlertOverlay() {
               <div className="mt-3 flex items-center gap-4 text-xs text-red-300/80 flex-wrap">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
-                  Multi-Region Confirmation: <strong>3/3 Failed</strong>
+                  Multi-Region Quorum: <strong>3/3 Failed</strong>
                 </span>
                 <span>•</span>
                 <span>Dispatched to: <strong>Web Push, WhatsApp, PWA, Email</strong></span>
@@ -53,34 +58,35 @@ export default function BuzzAlertOverlay() {
           </div>
 
           <button
-            onClick={() => setActiveBuzzAlert(null)}
-            className="text-red-300/60 hover:text-white p-1 rounded-lg hover:bg-red-900/40 transition-colors"
-            title="Dismiss Alert"
+            onClick={handleDismissAndSilence}
+            className="text-red-300/60 hover:text-white p-1.5 rounded-lg hover:bg-red-900/40 transition-colors"
+            title="Turn Off Alarm & Dismiss"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="mt-4 pt-3 border-t border-red-500/30 flex items-center justify-between flex-wrap gap-2">
+          {/* Silence Buzzer Button */}
           <button
-            onClick={() => playBuzzAlert()}
-            className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-lg transition-colors"
+            onClick={() => stopContinuousBuzzAlert()}
+            className="flex items-center gap-1.5 text-xs font-bold text-yellow-300 hover:text-yellow-200 bg-yellow-500/20 border border-yellow-500/40 px-3.5 py-2 rounded-xl transition-all hover:bg-yellow-500/30 shadow-sm"
           >
-            <Volume2 className="w-4 h-4 text-amber-400" />
-            Replay Buzz Alarm
+            <VolumeX className="w-4 h-4 text-yellow-400" />
+            <span>Silence Buzzer 🔇</span>
           </button>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveBuzzAlert(null)}
-              className="px-3.5 py-1.5 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              onClick={handleDismissAndSilence}
+              className="px-3.5 py-2 text-xs text-gray-300 hover:text-white rounded-xl hover:bg-white/10 transition-colors font-medium"
             >
-              Acknowledge
+              Acknowledge & Turn Off
             </button>
             <Link
               href="/app/incidents"
-              onClick={() => setActiveBuzzAlert(null)}
-              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-xs px-4 py-1.5 rounded-lg shadow-lg shadow-red-600/40 transition-all hover:translate-x-0.5"
+              onClick={handleDismissAndSilence}
+              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-red-600/40 transition-all hover:translate-x-0.5"
             >
               Open Incident Triage <ArrowRight className="w-3.5 h-3.5" />
             </Link>

@@ -1,0 +1,10 @@
+# Vercel Ignore file
+# Ignores Python backend worker files and Docker configs during frontend deployment on Vercel
+
+backend/
+docker-compose.yml
+Dockerfile
+prisma/migrations/
+__pycache__/
+*.py
+*.pyc
