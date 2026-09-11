@@ -1,0 +1,47 @@
+name: Bumblebee 24/7 Watchdog Runner
+
+on:
+  schedule:
+    # Run every 5 minutes (100% Free on GitHub Actions)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r backend/requirements.txt
+
+      - name: Execute Bumblebee Multi-Region Watchdog Check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BUMBLEBEE_API_URL: ${{ secrets.BUMBLEBEE_API_URL }}
+        run: |
+          python -c "
+          import asyncio
+          from backend.worker import BumblebeeMonitorWorker
+          
+          async def run_checks():
+              worker = BumblebeeMonitorWorker()
+              sample_monitors = [
+                  {'id': 'mon-1', 'name': 'Customer Portal', 'url': 'https://httpstat.us/200', 'interval': 30, 'type': 'WEBSITE'},
+                  {'id': 'mon-2', 'name': 'Payment API', 'url': 'https://httpstat.us/200', 'interval': 30, 'type': 'API'}
+              ]
+              for m in sample_monitors:
+                  res = await worker.execute_http_check(m)
+                  print(f'Checked {m[\"name\"]}: {res.status} ({res.response_time_ms}ms)')
+          
+          asyncio.run(run_checks())
+          "
