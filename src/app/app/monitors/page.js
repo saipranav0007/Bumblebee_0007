@@ -18,7 +18,8 @@ import {
   Layers, 
   ExternalLink,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import AddMonitorModal from '../../../components/monitors/AddMonitorModal';
 
@@ -27,6 +28,7 @@ export default function MonitorsPage() {
     monitors, 
     runManualCheck, 
     toggleMonitorPause, 
+    deleteMonitor,
     metrics 
   } = useBumblebee();
 
@@ -252,6 +254,13 @@ export default function MonitorsPage() {
                       title={m.status === 'PAUSED' ? 'Resume Monitor' : 'Pause Monitor'}
                     >
                       {m.status === 'PAUSED' ? <Play className="w-4 h-4 text-emerald-400" /> : <Pause className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => deleteMonitor(m.id)}
+                      className="p-2 rounded-xl bg-obsidian-950 border border-obsidian-800 hover:border-red-500 text-gray-400 hover:text-red-400 transition-colors"
+                      title="Delete Monitor"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 

@@ -240,6 +240,21 @@ export function BumblebeeProvider({ children }) {
     return created;
   }, [currentUser]);
 
+  // Delete Monitor
+  const deleteMonitor = useCallback((monitorId) => {
+    playClickSound();
+    setMonitors((prev) => prev.filter((m) => m.id !== monitorId));
+  }, []);
+
+  // Clear All Monitors
+  const clearAllMonitors = useCallback(() => {
+    playClickSound();
+    setMonitors([]);
+    setIncidents([]);
+    setActivityFeed([]);
+    setNotificationsHistory([]);
+  }, []);
+
   // Toggle Monitor Pause / Resume
   const toggleMonitorPause = useCallback((monitorId) => {
     playClickSound();
@@ -370,6 +385,8 @@ export function BumblebeeProvider({ children }) {
         setActiveBuzzAlert,
         triggerBuzzAlert,
         addMonitor,
+        deleteMonitor,
+        clearAllMonitors,
         toggleMonitorPause,
         resolveIncident,
         runManualCheck,

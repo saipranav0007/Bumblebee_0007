@@ -29,7 +29,8 @@ import {
   Cpu,
   Globe2,
   Terminal,
-  ShieldCheck
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
 import AddMonitorModal from '../../../components/monitors/AddMonitorModal';
 
@@ -41,6 +42,7 @@ export default function OverviewPage() {
     metrics, 
     runManualCheck, 
     toggleMonitorPause, 
+    deleteMonitor,
     triggerBuzzAlert,
     theme 
   } = useBumblebee();
@@ -402,6 +404,13 @@ export default function OverviewPage() {
                         title={m.status === 'PAUSED' ? 'Resume Monitor' : 'Pause Monitor'}
                       >
                         {m.status === 'PAUSED' ? <Play className="w-3.5 h-3.5 text-emerald-500" /> : <Pause className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => deleteMonitor(m.id)}
+                        className="text-[var(--text-muted)] hover:text-red-400 p-1 rounded hover:bg-[var(--bg-surface)] transition-colors"
+                        title="Delete Monitor"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
