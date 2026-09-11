@@ -24,12 +24,12 @@ import {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { addMonitor } = useBumblebee();
+  const { addMonitor, currentOrg, updateOrgProfile } = useBumblebee();
 
   const [currentStep, setCurrentStep] = useState(1); // 1 to 7
 
   // Form State
-  const [workspaceName, setWorkspaceName] = useState('Acme Cloud Technologies');
+  const [workspaceName, setWorkspaceName] = useState(currentOrg?.name || 'My Organization');
   const [monitorType, setMonitorType] = useState('WEBSITE');
   const [monitorName, setMonitorName] = useState('Production Marketing Portal');
   const [monitorUrl, setMonitorUrl] = useState('https://app.bumblebee.io');
@@ -93,6 +93,9 @@ export default function OnboardingPage() {
 
   const handleCompleteOnboarding = () => {
     playClickSound();
+    if (workspaceName?.trim()) {
+      updateOrgProfile({ name: workspaceName.trim() });
+    }
     // Add monitor to central store
     addMonitor({
       name: monitorName,

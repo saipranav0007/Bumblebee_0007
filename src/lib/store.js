@@ -11,6 +11,36 @@ import {
 } from './mock-data';
 import { playBuzzAlert, playRecoverySound, playClickSound } from './sound';
 
+export function getInitials(name) {
+  if (!name || typeof name !== 'string') return 'BB';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export const DOMAIN_ADMIN_USER = {
+  id: "usr-admin-domain",
+  name: "Domain Administrator",
+  email: "admin@bumblebee.io",
+  role: "DOMAIN ADMIN",
+  organization: "Bumblebee Global Cloud",
+  avatar: "DA",
+  twoFactor: true,
+  isDomainAdmin: true
+};
+
+export const DOMAIN_ADMIN_ORG = {
+  id: "org-bumblebee-domain",
+  name: "Bumblebee Global Cloud",
+  slug: "bumblebee-domain",
+  plan: "Enterprise Pro (Root Domain)",
+  slaTarget: 99.99,
+  region: "Global Quorum"
+};
+
+export const DEFAULT_USER = DOMAIN_ADMIN_USER;
+export const DEFAULT_ORG = DOMAIN_ADMIN_ORG;
+
 const BumblebeeContext = createContext(null);
 
 export function BumblebeeProvider({ children }) {
@@ -34,31 +64,37 @@ export function BumblebeeProvider({ children }) {
   const [activeBuzzAlert, setActiveBuzzAlert] = useState(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
-  // Organization / Auth State
-  const [currentOrg, setCurrentOrg] = useState({
-    id: "org-enterprise-1",
-    name: "My Organization",
-    slug: "my-org",
-    plan: "Enterprise Pro",
-    slaTarget: 99.95,
-    region: "Global Edge"
-  });
+  // Organization / Auth State (Hydrated from localStorage)
+  const [currentOrg, setCurrentOrg] = useState(DEFAULT_ORG);
+  const [currentUser, setCurrentUser] = useState(DEFAULT_USER);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
-  const [currentUser, setCurrentUser] = useState({
-    id: "usr-1",
-    name: "Admin",
-    email: "admin@bumblebee.io",
-    role: "OWNER",
-    organization: "My Organization",
-    twoFactor: true
-  });
-
-  // Load and apply theme
+  // Load and apply session + theme on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Theme
       const savedTheme = localStorage.getItem('bumblebee-theme') || 'dark';
       setThemeState(savedTheme);
       applyThemeToDom(savedTheme);
+
+      // Auth Session
+      try {
+        const savedUser = localStorage.getItem('bumblebee_session_user');
+        const savedOrg = localStorage.getItem('bumblebee_session_org');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          if (!parsedUser.avatar) {
+            parsedUser.avatar = getInitials(parsedUser.name);
+          }
+          setCurrentUser(parsedUser);
+          setIsAuthenticated(true);
+        }
+        if (savedOrg) {
+          setCurrentOrg(JSON.parse(savedOrg));
+        }
+      } catch (err) {
+        console.error('Error hydrating session:', err);
+      }
     }
   }, []);
 
@@ -119,90 +155,234 @@ export function BumblebeeProvider({ children }) {
       setMonitors((prevMonitors) => {
         if (prevMonitors.length === 0) return prevMonitors;
 
-        setChecksCountToday((prev) => prev + prevMonitors.length);
+        const jitter = Math.floor(Math.random() * 25) - 12;
+        return prevMonitors.map((mon) => {
+          if (mon.status === 'PAUSED' || mon.status === 'DOWN') return mon;
+          
+          const newResp = Math.max(45, Math.min(850, (mon.responseTime || 200) + jitter));
+          const newSparkline = [...(mon.sparkline || [200, 210, 220, 205, 215]).slice(1), newResp];
 
-        // Random micro-jitter on operational monitors to show living pulse
-        const updated = prevMonitors.map((m) => {
-          if (m.status === 'OPERATIONAL') {
-            const jitter = Math.floor(Math.random() * 16) - 8;
-            const newRt = Math.max(10, (m.responseTime || 200) + jitter);
-            const newSpark = [...(m.sparkline || [200, 200, 200]).slice(1), newRt];
-            return {
-              ...m,
-              responseTime: newRt,
-              sparkline: newSpark,
-              lastCheck: 'just now'
-            };
-          }
-          return m;
+          return {
+            ...mon,
+            responseTime: newResp,
+            sparkline: newSparkline,
+            lastCheck: 'just now'
+          };
         });
-
-        // Add live activity entry from real monitors
-        const randomMon = updated[Math.floor(Math.random() * updated.length)];
-        const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-        
-        setActivityFeed((prev) => [
-          {
-            id: `act-${Date.now()}`,
-            time: nowTime,
-            text: `${randomMon.name} probe verified (${randomMon.url})`,
-            type: randomMon.status === 'DOWN' ? 'error' : randomMon.status === 'DEGRADED' ? 'warning' : 'success',
-            ms: randomMon.status === 'DOWN' ? 0 : randomMon.responseTime || 180,
-            location: randomMon.location || "Global Quorum"
-          },
-          ...prev.slice(0, 19)
-        ]);
-
-        return updated;
       });
 
-    }, 5000);
+      setChecksCountToday((prev) => prev + 1);
+
+      // Only push random telemetry items if user actually has monitors configured
+      setMonitors((current) => {
+        if (current.length > 0 && Math.random() < 0.20) {
+          const target = current[Math.floor(Math.random() * current.length)];
+          if (target) {
+            const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+            setActivityFeed((prev) => [
+              {
+                id: `act-${Date.now()}`,
+                timestamp: `${nowTime} IST`,
+                monitorName: target.name,
+                type: "HEALTH_CHECK_PASS",
+                message: `TLS 1.3 handshake verified • ${target.responseTime || 180}ms probe passed`,
+                region: "US-East (Virginia Edge)",
+                status: "PASS"
+              },
+              ...prev.slice(0, 30)
+            ]);
+          }
+        }
+        return current;
+      });
+
+    }, 3500);
 
     return () => clearInterval(interval);
   }, [isLiveChecking]);
 
-  // Trigger signature 🐝 BUZZ ALERT
-  const triggerBuzzAlert = useCallback((incidentData) => {
-    const alertPayload = incidentData || {
-      id: `INC-BUZZ-${Date.now().toString().slice(-4)}`,
-      title: "Payment Gateway API DOWN — HTTP 503",
-      monitorName: "Stripe & Crypto Payment Gateway API",
+  // Trigger Buzz Alert (Sound + Critical modal)
+  const triggerBuzzAlert = useCallback((customPayload) => {
+    const alertPayload = customPayload || {
+      id: `buzz-${Date.now()}`,
+      title: "CRITICAL OUTAGE DETECTED",
+      monitorName: monitors[0]?.name || "Production Gateway Service",
+      message: "Socket hang-up received from Quorum Probes (4/4 regions unreachable). PagerDuty alert triggered.",
       severity: "CRITICAL",
-      errorMessage: "HTTP 503 Service Unavailable (3 consecutive failures across US-East, EU-Frankfurt, AP-Mumbai)",
-      startedAt: new Date().toLocaleTimeString('en-US', { hour12: false }) + " IST",
-      channels: ["Web Push", "Mobile PWA", "WhatsApp", "Email"]
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }) + " IST",
+      recommendedAction: "Verify upstream BGP routes or failover DNS records immediately to secondary CDN.",
+      autoAiDiagnosis: "Probable SSL Certificate Expiry or Reverse Proxy 502 Bad Gateway loop."
     };
 
     setActiveBuzzAlert(alertPayload);
     playBuzzAlert();
 
-    // Log notification delivery
     const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const newNotif = {
-      id: `notif-${Date.now()}`,
-      timestamp: nowTime,
-      service: alertPayload.monitorName,
-      incident: alertPayload.id,
-      channel: "BUZZ ALERT",
-      recipient: "On-Call Engineering Team",
-      status: "DELIVERED",
-      isBuzz: true
-    };
-    setNotificationsHistory((prev) => [newNotif, ...prev]);
-
-    // Record Audit Log
     setAuditLogs((prev) => [
       {
         id: `aud-${Date.now()}`,
         timestamp: nowTime,
-        user: "Bumblebee Alert Engine",
-        action: "BUZZ_ALERT_TRIGGERED",
+        user: currentUser?.name || "System Sentinel",
+        action: "BUZZ_ALERT_DISPATCHED",
         resource: alertPayload.monitorName,
         ip: "10.0.0.1 (Quorum Engine)",
         details: `Critical alarm broadcasted to Web Push, WhatsApp, and PWA.`
       },
       ...prev
     ]);
+  }, [monitors, currentUser]);
+
+  // Auth: Login
+  const loginUser = useCallback(({ email, password, isDomainAdmin = false }) => {
+    let user;
+    let org;
+
+    if (isDomainAdmin || (email && (email.toLowerCase().includes('admin@') || email.toLowerCase() === 'admin'))) {
+      user = DOMAIN_ADMIN_USER;
+      org = DOMAIN_ADMIN_ORG;
+    } else {
+      // Check registered users in localStorage
+      let registered = [];
+      try {
+        if (typeof window !== 'undefined') {
+          registered = JSON.parse(localStorage.getItem('bumblebee_registered_users') || '[]');
+        }
+      } catch (e) {}
+
+      const found = registered.find(u => u.email.toLowerCase() === (email || '').toLowerCase());
+      if (found) {
+        user = found;
+        org = {
+          id: `org-${found.id}`,
+          name: found.organization || `${found.name}'s Workspace`,
+          slug: (found.organization || found.name).toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          plan: "Enterprise Pro",
+          slaTarget: 99.95,
+          region: "Global Edge"
+        };
+      } else {
+        // Auto initialize account for the entered email/name
+        const cleanName = email ? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : "Personal User";
+        user = {
+          id: `usr-${Date.now()}`,
+          name: cleanName,
+          email: email || "user@example.com",
+          role: "OWNER",
+          organization: `${cleanName}'s Workspace`,
+          avatar: getInitials(cleanName),
+          twoFactor: true,
+          isDomainAdmin: false
+        };
+        org = {
+          id: `org-${Date.now()}`,
+          name: `${cleanName}'s Workspace`,
+          slug: cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          plan: "Enterprise Pro",
+          slaTarget: 99.95,
+          region: "Global Edge"
+        };
+      }
+    }
+
+    setCurrentUser(user);
+    setCurrentOrg(org);
+    setIsAuthenticated(true);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bumblebee_session_user', JSON.stringify(user));
+      localStorage.setItem('bumblebee_session_org', JSON.stringify(org));
+    }
+
+    return { success: true, user, org };
+  }, []);
+
+  // Auth: Sign Up (Personal Account Creation)
+  const signupUser = useCallback(({ name, email, organization, password, phone }) => {
+    const cleanName = name?.trim() || 'Personal User';
+    const cleanEmail = email?.trim() || 'user@example.com';
+    const orgName = organization?.trim() || `${cleanName}'s Workspace`;
+    const userAvatar = getInitials(cleanName);
+
+    const newUser = {
+      id: `usr-${Date.now()}`,
+      name: cleanName,
+      email: cleanEmail,
+      role: "OWNER",
+      organization: orgName,
+      avatar: userAvatar,
+      phone: phone || '+1 (555) 000-0000',
+      twoFactor: true,
+      isDomainAdmin: false
+    };
+
+    const newOrg = {
+      id: `org-${Date.now()}`,
+      name: orgName,
+      slug: orgName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      plan: "Enterprise Pro",
+      slaTarget: 99.95,
+      region: "Global Edge"
+    };
+
+    if (typeof window !== 'undefined') {
+      try {
+        const existing = JSON.parse(localStorage.getItem('bumblebee_registered_users') || '[]');
+        const updated = [newUser, ...existing.filter(u => u.email.toLowerCase() !== cleanEmail.toLowerCase())];
+        localStorage.setItem('bumblebee_registered_users', JSON.stringify(updated));
+        localStorage.setItem('bumblebee_session_user', JSON.stringify(newUser));
+        localStorage.setItem('bumblebee_session_org', JSON.stringify(newOrg));
+      } catch (e) {
+        console.error('Error saving registered user', e);
+      }
+    }
+
+    setCurrentUser(newUser);
+    setCurrentOrg(newOrg);
+    setIsAuthenticated(true);
+
+    return { success: true, user: newUser, org: newOrg };
+  }, []);
+
+  // Auth: Logout
+  const logoutUser = useCallback(() => {
+    playClickSound();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('bumblebee_session_user');
+      localStorage.removeItem('bumblebee_session_org');
+    }
+    setCurrentUser(DEFAULT_USER);
+    setCurrentOrg(DEFAULT_ORG);
+    setIsAuthenticated(false);
+  }, []);
+
+  // Auth: Profile Updates
+  const updateUserProfile = useCallback((updates) => {
+    setCurrentUser((prev) => {
+      const updated = { ...prev, ...updates };
+      if (updates.name) {
+        updated.avatar = getInitials(updates.name);
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bumblebee_session_user', JSON.stringify(updated));
+        try {
+          const existing = JSON.parse(localStorage.getItem('bumblebee_registered_users') || '[]');
+          const listUpdated = existing.map(u => u.email === updated.email ? updated : u);
+          localStorage.setItem('bumblebee_registered_users', JSON.stringify(listUpdated));
+        } catch (e) {}
+      }
+      return updated;
+    });
+  }, []);
+
+  // Auth: Org Updates
+  const updateOrgProfile = useCallback((updates) => {
+    setCurrentOrg((prev) => {
+      const updated = { ...prev, ...updates };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bumblebee_session_org', JSON.stringify(updated));
+      }
+      return updated;
+    });
   }, []);
 
   // Add Monitor
@@ -228,7 +408,7 @@ export function BumblebeeProvider({ children }) {
       {
         id: `aud-${Date.now()}`,
         timestamp: nowTime,
-        user: currentUser.name,
+        user: currentUser?.name || "System Admin",
         action: "MONITOR_CREATED",
         resource: created.name,
         ip: "198.51.100.14",
@@ -317,7 +497,7 @@ export function BumblebeeProvider({ children }) {
       {
         id: `aud-${Date.now()}`,
         timestamp: nowTime,
-        user: currentUser.name,
+        user: currentUser?.name || "System Admin",
         action: "INCIDENT_RESOLVED",
         resource: incidentId,
         ip: "198.51.100.14",
@@ -377,6 +557,12 @@ export function BumblebeeProvider({ children }) {
         auditLogs,
         currentOrg,
         currentUser,
+        isAuthenticated,
+        loginUser,
+        signupUser,
+        logoutUser,
+        updateUserProfile,
+        updateOrgProfile,
         checksCountToday,
         lastCheckTimestamp,
         isLiveChecking,

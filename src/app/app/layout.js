@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useBumblebee } from '../../lib/store';
+import { usePathname, useRouter } from 'next/navigation';
+import { useBumblebee, getInitials } from '../../lib/store';
 import { playClickSound } from '../../lib/sound';
 import { 
   Activity, 
@@ -33,14 +33,17 @@ import {
   Clock,
   Cpu,
   Zap,
-  Globe2
+  Globe2,
+  LogOut
 } from 'lucide-react';
 
 export default function AppLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { 
     currentOrg, 
     currentUser, 
+    logoutUser,
     metrics, 
     triggerBuzzAlert, 
     theme, 
@@ -50,6 +53,12 @@ export default function AppLayout({ children }) {
   } = useBumblebee();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleSignOut = () => {
+    playClickSound();
+    logoutUser();
+    router.push('/auth/signin');
+  };
 
   const handleThemeChange = (newTheme) => {
     playClickSound();
@@ -269,18 +278,22 @@ export default function AppLayout({ children }) {
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2 truncate">
-              <div className="w-7 h-7 rounded-lg bg-bee-500/20 text-bee-500 font-bold text-xs flex items-center justify-center border border-bee-500/30">
-                AM
+              <div className="w-7 h-7 rounded-lg bg-bee-500/20 text-bee-500 font-bold text-xs flex items-center justify-center border border-bee-500/30 font-mono shrink-0">
+                {currentUser?.avatar || getInitials(currentUser?.name)}
               </div>
               <div className="truncate">
-                <div className="text-xs font-bold text-[var(--text-primary)] truncate">{currentUser.name}</div>
-                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">{currentUser.role}</div>
+                <div className="text-xs font-bold text-[var(--text-primary)] truncate">{currentUser?.name || 'User'}</div>
+                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">{currentUser?.role || 'MEMBER'}</div>
               </div>
             </div>
             
-            <Link href="/auth/signin" className="text-[var(--text-muted)] hover:text-red-400 text-xs p-1" title="Sign Out">
-              <X className="w-3.5 h-3.5" />
-            </Link>
+            <button 
+              onClick={handleSignOut} 
+              className="text-[var(--text-muted)] hover:text-red-400 text-xs p-1 transition-colors rounded hover:bg-[var(--bg-card)] cursor-pointer" 
+              title="Sign Out / Switch Account"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 

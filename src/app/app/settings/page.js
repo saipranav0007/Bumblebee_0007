@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBumblebee } from '../../../lib/store';
 import { playClickSound, playRecoverySound } from '../../../lib/sound';
 import { 
@@ -21,18 +21,62 @@ import {
   Flame,
   Globe,
   Palette,
-  Sparkles
+  Sparkles,
+  User,
+  Mail,
+  Phone,
+  Save,
+  Crown
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { theme, setTheme, currentOrg } = useBumblebee();
-  const [activeTab, setActiveTab] = useState('APPEARANCE'); // 'APPEARANCE', 'VAULT', 'SSRF', 'ORG'
+  const { theme, setTheme, currentOrg, currentUser, updateUserProfile, updateOrgProfile } = useBumblebee();
+  const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE', 'ORG', 'APPEARANCE', 'VAULT', 'SSRF'
+
+  // User Profile Form State
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '+1 (555) 019-2834',
+    role: currentUser?.role || 'OWNER'
+  });
+
+  // Org Profile Form State
+  const [orgForm, setOrgForm] = useState({
+    name: currentOrg?.name || '',
+    plan: currentOrg?.plan || 'Enterprise Pro',
+    slaTarget: currentOrg?.slaTarget || 99.95,
+    region: currentOrg?.region || 'Global Edge'
+  });
+
+  // Sync state if store updates
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '+1 (555) 019-2834',
+        role: currentUser.role || 'OWNER'
+      });
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentOrg) {
+      setOrgForm({
+        name: currentOrg.name || '',
+        plan: currentOrg.plan || 'Enterprise Pro',
+        slaTarget: currentOrg.slaTarget || 99.95,
+        region: currentOrg.region || 'Global Edge'
+      });
+    }
+  }, [currentOrg]);
 
   // Secrets Vault State
   const [secrets, setSecrets] = useState([
-    { id: 'sec-1', name: 'STRIPE_PROD_BEARER', maskedValue: '••••••••82KQ', lastRotated: '2 days ago', issuer: 'Alex Mercer' },
+    { id: 'sec-1', name: 'STRIPE_PROD_BEARER', maskedValue: '••••••••82KQ', lastRotated: '2 days ago', issuer: currentUser?.name || 'Admin' },
     { id: 'sec-2', name: 'AUTH0_CLIENT_SECRET', maskedValue: '••••••••99PX', lastRotated: '14 days ago', issuer: 'Sarah Lin' },
-    { id: 'sec-3', name: 'PLAYWRIGHT_TEST_USER_PASSWORD', maskedValue: '••••••••44LM', lastRotated: '1 month ago', issuer: 'Alex Mercer' },
+    { id: 'sec-3', name: 'PLAYWRIGHT_TEST_USER_PASSWORD', maskedValue: '••••••••44LM', lastRotated: '1 month ago', issuer: currentUser?.name || 'Admin' },
   ]);
 
   const [notificationStatus, setNotificationStatus] = useState('');
@@ -42,6 +86,33 @@ export default function SettingsPage() {
     setTheme(newTheme);
     setNotificationStatus(`Theme switched to: ${newTheme.toUpperCase()}`);
     setTimeout(() => setNotificationStatus(''), 2500);
+  };
+
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    playClickSound();
+    updateUserProfile({
+      name: profileForm.name,
+      email: profileForm.email,
+      phone: profileForm.phone
+    });
+    playRecoverySound();
+    setNotificationStatus('Personal Profile successfully saved and synchronized!');
+    setTimeout(() => setNotificationStatus(''), 3000);
+  };
+
+  const handleSaveOrg = (e) => {
+    e.preventDefault();
+    playClickSound();
+    updateOrgProfile({
+      name: orgForm.name,
+      plan: orgForm.plan,
+      slaTarget: parseFloat(orgForm.slaTarget) || 99.95,
+      region: orgForm.region
+    });
+    playRecoverySound();
+    setNotificationStatus('Organization details successfully updated!');
+    setTimeout(() => setNotificationStatus(''), 3000);
   };
 
   const handleRotateSecret = (secId) => {
@@ -60,35 +131,40 @@ export default function SettingsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight flex items-center gap-2 font-mono">
-              <span>Platform Settings & Vault</span>
+              <span>Platform Settings & Profile</span>
               <span className="p-1 rounded-lg bg-bee-500/20 text-bee-500 border border-bee-500/30 text-xs">
                 <Settings className="w-4 h-4" />
               </span>
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 font-mono">
-            Customize theme modes, rotate zero-knowledge secret references, and configure SSRF security guards.
+            Manage your personal profile, organization settings, secret vault, and platform appearance.
           </p>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center bg-[var(--bg-surface)] p-1 rounded-xl border border-[var(--border-color)] text-xs font-mono shadow-sm">
+        <div className="flex flex-wrap items-center bg-[var(--bg-surface)] p-1 rounded-xl border border-[var(--border-color)] text-xs font-mono shadow-sm gap-1">
           {[
-            { id: 'APPEARANCE', label: 'Three Themes' },
-            { id: 'VAULT', label: 'Secret Vault' },
-            { id: 'SSRF', label: 'SSRF Defense' },
-            { id: 'ORG', label: 'Organization' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { playClickSound(); setActiveTab(tab.id); }}
-              className={`px-3 py-1.5 rounded-lg transition-colors font-bold ${
-                activeTab === tab.id ? 'bg-bee-500 text-black shadow' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: 'PROFILE', label: 'User Profile', icon: User },
+            { id: 'ORG', label: 'Organization', icon: Building },
+            { id: 'APPEARANCE', label: 'Themes', icon: Palette },
+            { id: 'VAULT', label: 'Vault', icon: KeyRound },
+            { id: 'SSRF', label: 'SSRF Guard', icon: ShieldCheck },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { playClickSound(); setActiveTab(tab.id); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors font-bold cursor-pointer ${
+                  activeTab === tab.id ? 'bg-bee-500 text-black shadow' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -99,104 +175,214 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* SUB-VIEW 1: THREE THEMES */}
+      {/* SUB-VIEW 1: PERSONAL USER PROFILE */}
+      {activeTab === 'PROFILE' && (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+            <h3 className="text-base font-bold text-[var(--text-primary)] font-mono flex items-center gap-2">
+              <User className="w-4 h-4 text-bee-500" />
+              <span>Personal Account Profile</span>
+            </h3>
+            <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-bee-500/15 text-bee-500 border border-bee-500/30 font-bold">
+              {currentUser?.role || 'OWNER'}
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                  placeholder="e.g. Sai Pranav"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                  placeholder="e.g. user@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Phone Number (WhatsApp Alerts)</label>
+                <input
+                  type="tel"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                  placeholder="+1 (555) 019-2834"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Account Role & Access</label>
+                <input
+                  type="text"
+                  disabled
+                  value={`${profileForm.role} (Hardware 2FA Active)`}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-2.5 text-[var(--text-muted)] font-mono opacity-80 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                className="flex items-center gap-2 bg-bee-500 hover:bg-bee-400 text-black font-bold text-xs px-5 py-2.5 rounded-xl shadow-glow-amber transition-all cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Profile Changes</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* SUB-VIEW 2: ORG */}
+      {activeTab === 'ORG' && (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-5">
+          <h3 className="text-base font-bold text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-3 font-mono flex items-center gap-2">
+            <Building className="w-4 h-4 text-bee-500" />
+            <span>Organization & Workspace Details</span>
+          </h3>
+
+          <form onSubmit={handleSaveOrg} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Organization / Workspace Name</label>
+                <input
+                  type="text"
+                  required
+                  value={orgForm.name}
+                  onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Subscription Plan</label>
+                <input
+                  type="text"
+                  value={orgForm.plan}
+                  onChange={(e) => setOrgForm({ ...orgForm, plan: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-bee-500 font-bold focus:outline-none focus:border-bee-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">SLA Target Commitment (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={orgForm.slaTarget}
+                  onChange={(e) => setOrgForm({ ...orgForm, slaTarget: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-secondary)] uppercase mb-1">Primary Probe Region</label>
+                <input
+                  type="text"
+                  value={orgForm.region}
+                  onChange={(e) => setOrgForm({ ...orgForm, region: e.target.value })}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                className="flex items-center gap-2 bg-bee-500 hover:bg-bee-400 text-black font-bold text-xs px-5 py-2.5 rounded-xl shadow-glow-amber transition-all cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Workspace Settings</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* SUB-VIEW 3: THREE THEMES */}
       {activeTab === 'APPEARANCE' && (
         <div className="space-y-4">
           <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl text-xs font-mono text-[var(--text-muted)] shadow-sm">
-            <span className="text-bee-500 font-bold block mb-1">THEME ARCHITECTURE:</span>
-            Bumblebee supports three distinct UX modes. Switch below to instantly preview the Obsidian Dark tactical command cockpit, Solar Titanium studio lighting, or the Hive Matrix Worker mode.
+            Toggle between the 3 bespoke design themes built for high-stakes site reliability engineering.
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            
-            {/* Mode 1: Dark Theme */}
-            <div
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Theme 1 */}
+            <div 
               onClick={() => handleThemeChange('dark')}
-              className={`p-6 rounded-2xl border cursor-pointer transition-all shadow-sm ${
-                theme === 'dark'
-                  ? 'bg-[var(--bg-card)] border-bee-500 shadow-glow-amber scale-105 ring-2 ring-bee-500/20'
-                  : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-bee-500/40'
+              className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                theme === 'dark' 
+                  ? 'border-bee-500 bg-obsidian-900 shadow-glow-amber scale-[1.02]' 
+                  : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-bee-500/50'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-obsidian-900 border border-obsidian-700 text-bee-400 shadow">
-                  <Moon className="w-6 h-6" />
-                </div>
-                {theme === 'dark' && (
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-bee-500 text-black">
-                    ACTIVE
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <Moon className="w-6 h-6 text-bee-400" />
+                {theme === 'dark' && <span className="text-[10px] font-mono bg-bee-500 text-black font-bold px-2 py-0.5 rounded">ACTIVE</span>}
               </div>
-              <h3 className="text-base font-bold text-[var(--text-primary)] mt-4">Obsidian Dark</h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-                Cyber tactical command center with deep obsidian midnight surfaces and amber glow telemetry.
-              </p>
+              <h4 className="font-bold text-sm text-[var(--text-primary)] font-mono">1. Obsidian Dark Command</h4>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Deep obsidian background (#06080c) tailored for 24/7 SOC / NOC war rooms.</p>
             </div>
 
-            {/* Mode 2: Light / Solar Theme */}
-            <div
+            {/* Theme 2 */}
+            <div 
               onClick={() => handleThemeChange('light')}
-              className={`p-6 rounded-2xl border cursor-pointer transition-all shadow-sm ${
-                theme === 'light'
-                  ? 'bg-[var(--bg-card)] border-amber-500 shadow-xl scale-105 ring-2 ring-amber-500/30'
-                  : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-amber-500/40'
+              className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                theme === 'light' 
+                  ? 'border-amber-500 bg-amber-500/10 shadow-glow-amber scale-[1.02]' 
+                  : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-amber-500/50'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 shadow">
-                  <Sun className="w-6 h-6" />
-                </div>
-                {theme === 'light' && (
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500 text-white shadow-sm">
-                    ACTIVE
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <Sun className="w-6 h-6 text-amber-500" />
+                {theme === 'light' && <span className="text-[10px] font-mono bg-amber-500 text-white font-bold px-2 py-0.5 rounded">ACTIVE</span>}
               </div>
-              <h3 className="text-base font-bold text-[var(--text-primary)] mt-4">Solar Lighting</h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-                Crisp alabaster executive studio lighting with warm champagne accents for daytime operations.
-              </p>
+              <h4 className="font-bold text-sm text-[var(--text-primary)] font-mono">2. Solar Lighting Mode</h4>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Clean slate aesthetic with amber accents, high contrast typography for daylight operations.</p>
             </div>
 
-            {/* Mode 3: Worker Mode (Hive Matrix) */}
-            <div
+            {/* Theme 3 */}
+            <div 
               onClick={() => handleThemeChange('worker')}
-              className={`p-6 rounded-2xl border cursor-pointer transition-all shadow-sm ${
-                theme === 'worker'
-                  ? 'bg-[var(--bg-card)] border-yellow-400 shadow-glow-worker scale-105 ring-2 ring-yellow-400/40'
-                  : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-yellow-400/40'
+              className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                theme === 'worker' 
+                  ? 'border-yellow-400 bg-yellow-400/10 shadow-glow-critical scale-[1.02]' 
+                  : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-yellow-400/50'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="p-3 rounded-xl bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 shadow">
-                  <HardHat className="w-6 h-6" />
-                </div>
-                {theme === 'worker' && (
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-yellow-400 text-black animate-pulse">
-                    🐝 WORKER ACTIVE
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <HardHat className="w-6 h-6 text-yellow-400" />
+                {theme === 'worker' && <span className="text-[10px] font-mono bg-yellow-400 text-black font-bold px-2 py-0.5 rounded">ACTIVE</span>}
               </div>
-              <h3 className="text-base font-bold text-[var(--text-primary)] mt-4 flex items-center gap-1.5">
-                <span>Hive Matrix</span>
-                <span className="text-[10px] text-yellow-400 font-mono">(Worker Mode)</span>
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-                High-voltage industrial carbon HUD with active worker telemetry, scanlines, and honeycomb mesh.
-              </p>
+              <h4 className="font-bold text-sm text-[var(--text-primary)] font-mono">3. 🐝 Worker Hive HUD</h4>
+              <p className="text-xs text-[var(--text-muted)] mt-1">High-visibility industrial hazard scheme with glowing amber/yellow telemetry HUD accents.</p>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* SUB-VIEW 2: SECRET VAULT */}
+      {/* SUB-VIEW 4: VAULT */}
       {activeTab === 'VAULT' && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div>
-              <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <h3 className="text-base font-bold text-[var(--text-primary)] font-mono flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-bee-500" />
                 <span>Zero-Exposition Credential Vault</span>
               </h3>
@@ -222,7 +408,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleRotateSecret(sec.id)}
-                    className="flex items-center gap-1 bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-color)] text-bee-500 px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                    className="flex items-center gap-1 bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-color)] text-bee-500 px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer"
                   >
                     <RotateCw className="w-3.5 h-3.5" />
                     <span>Rotate Secret</span>
@@ -234,7 +420,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* SUB-VIEW 3: SSRF DEFENSE */}
+      {/* SUB-VIEW 5: SSRF DEFENSE */}
       {activeTab === 'SSRF' && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="text-base font-bold text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-3 font-mono flex items-center gap-2">
@@ -250,36 +436,6 @@ export default function SettingsPage() {
               <li>Cloud metadata endpoints: <code>169.254.169.254</code> (AWS/GCP/Azure IMDS), <code>metadata.google.internal</code></li>
               <li>DNS Rebinding Protection: Multi-round A/AAAA record resolution before socket dispatch.</li>
             </ul>
-          </div>
-        </div>
-      )}
-
-      {/* SUB-VIEW 4: ORG */}
-      {activeTab === 'ORG' && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 shadow-sm space-y-4">
-          <h3 className="text-base font-bold text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-3 font-mono">
-            Organization Profile
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-            <div>
-              <label className="block text-[var(--text-muted)] uppercase mb-1">Organization Name</label>
-              <input
-                type="text"
-                value={currentOrg.name}
-                disabled
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-2.5 text-[var(--text-primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-[var(--text-muted)] uppercase mb-1">Plan Tier</label>
-              <input
-                type="text"
-                value={currentOrg.plan}
-                disabled
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-2.5 text-bee-500 font-bold"
-              />
-            </div>
           </div>
         </div>
       )}

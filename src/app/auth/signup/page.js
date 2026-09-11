@@ -4,15 +4,17 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, User, Building, Phone, ArrowRight, CheckCircle2, XCircle, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
+import { useBumblebee } from '../../../lib/store';
 import { playClickSound, playRecoverySound } from '../../../lib/sound';
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { signupUser } = useBumblebee();
   const [formData, setFormData] = useState({
-    name: 'Alex Mercer',
-    email: 'alex.mercer@enterprise.io',
-    organization: 'Acme Cloud Technologies',
-    phone: '+1 (555) 234-5678',
+    name: '',
+    email: '',
+    organization: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -30,12 +32,12 @@ export default function SignUpPage() {
   const handleQuickFill = () => {
     playClickSound();
     setFormData({
-      name: 'Alex Mercer',
-      email: 'alex.mercer@enterprise.io',
-      organization: 'Acme Cloud Technologies',
-      phone: '+1 (555) 234-5678',
-      password: 'BumblebeePass2026!',
-      confirmPassword: 'BumblebeePass2026!'
+      name: 'Sai Pranav',
+      email: 'pranav@bumblebee.io',
+      organization: 'Bumblebee Cloud Ops',
+      phone: '+1 (555) 019-2834',
+      password: 'BumblebeeSecurePass2026!',
+      confirmPassword: 'BumblebeeSecurePass2026!'
     });
     setErrorMessage('');
   };
@@ -51,7 +53,7 @@ export default function SignUpPage() {
     }
 
     if (!formData.email.trim() || !formData.email.includes('@')) {
-      setErrorMessage('Please enter a valid work email.');
+      setErrorMessage('Please enter a valid work or personal email.');
       return;
     }
 
@@ -66,11 +68,24 @@ export default function SignUpPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      playRecoverySound();
+    try {
+      signupUser({
+        name: formData.name,
+        email: formData.email,
+        organization: formData.organization,
+        password: formData.password,
+        phone: formData.phone
+      });
+
+      setTimeout(() => {
+        playRecoverySound();
+        setIsLoading(false);
+        router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+      }, 400);
+    } catch (err) {
       setIsLoading(false);
-      router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
-    }, 400);
+      setErrorMessage(err.message || 'Failed to create account.');
+    }
   };
 
   return (
@@ -87,7 +102,7 @@ export default function SignUpPage() {
           </span>
         </Link>
         <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-          Create Your Monitoring Workspace
+          Create Your Personal Account
         </h2>
         <p className="mt-2 text-xs sm:text-sm text-[var(--text-muted)] font-mono">
           "Know before your users do."
@@ -101,7 +116,7 @@ export default function SignUpPage() {
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-bee-500/15 text-bee-500 border border-bee-500/30 text-xs font-mono font-bold hover:bg-bee-500/25 transition-all shadow-sm"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>Click to Auto-Fill Demo Credentials</span>
+            <span>Click to Auto-Fill Sample Info</span>
           </button>
         </div>
       </div>
@@ -131,14 +146,14 @@ export default function SignUpPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl pl-10 pr-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-bee-500 transition-colors font-mono"
-                  placeholder="Jane Doe"
+                  placeholder="e.g. John Doe / Sai Pranav"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] font-mono uppercase">
-                Work Email <span className="text-red-400">*</span>
+                Email Address <span className="text-red-400">*</span>
               </label>
               <div className="mt-1 relative rounded-xl">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -150,7 +165,7 @@ export default function SignUpPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl pl-10 pr-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-bee-500 transition-colors font-mono"
-                  placeholder="jane@company.com"
+                  placeholder="name@company.com"
                 />
               </div>
             </div>
@@ -158,7 +173,7 @@ export default function SignUpPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] font-mono uppercase">
-                  Organization <span className="text-[var(--text-muted)]">(Optional)</span>
+                  Workspace Name
                 </label>
                 <div className="mt-1 relative rounded-xl">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
@@ -169,7 +184,7 @@ export default function SignUpPage() {
                     value={formData.organization}
                     onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
                     className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl pl-9 pr-2 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-bee-500 font-mono"
-                    placeholder="Acme Inc."
+                    placeholder="My Cloud Team"
                   />
                 </div>
               </div>
@@ -270,4 +285,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
