@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Next.js Fullstack Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://bumblebee:bumblebee_secure_pass@db:5432/bumblebee_db?schema=public
+      - NODE_ENV=production
+    depends_on:
+      - db
+
+  # Python Continuous Monitoring Worker
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://bumblebee:bumblebee_secure_pass@db:5432/bumblebee_db?schema=public
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: bumblebee
+      POSTGRES_PASSWORD: bumblebee_secure_pass
+      POSTGRES_DB: bumblebee_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -1,0 +1,434 @@
+// Bumblebee Digital Service Monitoring & Incident Intelligence Platform
+// Prisma Schema Definition - PostgreSQL
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleType {
+  OWNER
+  ADMIN
+  ENGINEER
+  VIEWER
+}
+
+enum MonitorType {
+  WEBSITE
+  API
+  WEB_APPLICATION
+  SYNTHETIC
+  SERVER
+  DATABASE
+  BACKEND_SERVICE
+  SSL_CERTIFICATE
+}
+
+enum MonitorStatus {
+  OPERATIONAL
+  DEGRADED
+  DOWN
+  MAINTENANCE
+  PAUSED
+}
+
+enum IncidentSeverity {
+  INFO
+  WARNING
+  MAJOR
+  CRITICAL
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+enum ChannelType {
+  EMAIL
+  BROWSER_PUSH
+  MOBILE_PWA
+  WHATSAPP
+  WEBHOOK
+  SLACK
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  HEAD
+}
+
+model User {
+  id               String               @id @default(uuid())
+  email            String               @unique
+  name             String
+  passwordHash     String
+  phoneNumber      String?
+  emailVerified    Boolean              @default(false)
+  verificationToken String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  twoFactorEnabled Boolean              @default(false)
+  themePreference  String               @default("dark") // dark, light, worker
+  memberships      OrganizationMember[]
+  auditLogs        AuditLog[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+model Organization {
+  id                 String               @id @default(uuid())
+  name               String
+  slug               String               @unique
+  plan               String               @default("enterprise_pro")
+  members            OrganizationMember[]
+  monitors           Monitor[]
+  incidents          Incident[]
+  notificationChannels NotificationChannel[]
+  notificationRules  NotificationRule[]
+  maintenanceWindows MaintenanceWindow[]
+  syntheticJourneys  SyntheticJourney[]
+  secretReferences   SecretReference[]
+  statusPages        StatusPage[]
+  slaPolicies        SlaPolicy[]
+  auditLogs          AuditLog[]
+  subscriptions      Subscription[]
+  usageRecords       UsageRecord[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  userId         String
+  organizationId String
+  role           RoleType     @default(ENGINEER)
+  assignedServices String[]   @default([])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+model Monitor {
+  id                  String             @id @default(uuid())
+  organizationId      String
+  name                String
+  type                MonitorType        @default(WEBSITE)
+  url                 String
+  method              HttpMethod         @default(GET)
+  headers             Json?              @default("{}")
+  queryParams         Json?              @default("{}")
+  requestBody         String?
+  expectedStatusCode  Int                @default(200)
+  expectedResponseText String?
+  jsonPathAssertion   String?
+  cssSelector         String?
+  checkIntervalSeconds Int               @default(30)
+  timeoutMs           Int                @default(10000)
+  retryCount          Int                @default(3)
+  retryDelaySeconds   Int                @default(5)
+  confirmationQuorum  Int                @default(2) // Number of regions failing before incident
+  status              MonitorStatus      @default(OPERATIONAL)
+  currentResponseTime Int                @default(0)
+  uptimePercent       Float              @default(100.0)
+  lastCheckedAt       DateTime?
+  tags                String[]           @default([])
+  isPaused            Boolean            @default(false)
+  
+  // Relations
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  checks              MonitorCheck[]
+  incidents           Incident[]
+  sslCertificate      SslCertificate?
+  syntheticJourney    SyntheticJourney?  @relation(fields: [syntheticJourneyId], references: [id])
+  syntheticJourneyId  String?
+  
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([organizationId, status])
+  @@index([lastCheckedAt])
+}
+
+model MonitorLocation {
+  id          String   @id @default(uuid())
+  name        String
+  regionCode  String   @unique // e.g. "us-east-1", "eu-central-1", "ap-south-1"
+  displayName String   // "US East (N. Virginia)", "India (Mumbai)"
+  countryCode String
+  isActive    Boolean  @default(true)
+  ipAddresses String[]
+  createdAt   DateTime @default(now())
+}
+
+model MonitorCheck {
+  id              String        @id @default(uuid())
+  monitorId       String
+  locationCode    String        @default("us-east")
+  status          MonitorStatus @default(OPERATIONAL)
+  statusCode      Int?
+  responseTimeMs  Int
+  dnsTimeMs       Int?
+  connectTimeMs   Int?
+  tlsHandshakeMs  Int?
+  ttfbMs          Int?
+  errorMessage    String?
+  responseHeaders Json?
+  attemptNumber   Int           @default(1)
+  isConfirmedFailure Boolean    @default(false)
+  
+  monitor         Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@index([monitorId, createdAt])
+}
+
+model Incident {
+  id                 String           @id @default(uuid())
+  organizationId     String
+  monitorId          String
+  title              String
+  status             IncidentStatus   @default(INVESTIGATING)
+  severity           IncidentSeverity @default(CRITICAL)
+  errorType          String           // "HTTP 503", "Connection Timeout", "SSL Expired", "Assertion Failed"
+  errorMessage       String
+  consecutiveFailures Int             @default(3)
+  startedAt          DateTime         @default(now())
+  identifiedAt       DateTime?
+  resolvedAt         DateTime?
+  durationSeconds    Int?
+  affectedImpact     String?
+  aiAnalysisSummary  String?
+  aiRootCause        String?
+  aiFactSummary      Json?            // { confirmed: [], observed: [], likely: [], unknown: [] }
+  dedupCheckCount    Int              @default(1)
+  isBuzzAlertTriggered Boolean        @default(false)
+
+  organization       Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  monitor            Monitor          @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  events             IncidentEvent[]
+  notificationsSent  Notification[]
+  
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([organizationId, status])
+  @@index([monitorId, startedAt])
+}
+
+model IncidentEvent {
+  id          String         @id @default(uuid())
+  incidentId  String
+  status      IncidentStatus
+  title       String
+  description String
+  actorType   String         @default("SYSTEM") // SYSTEM, AI_ENGINE, ADMIN
+  actorName   String         @default("Bumblebee Engine")
+  telemetry   Json?
+  incident    Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+
+  @@index([incidentId, createdAt])
+}
+
+model NotificationChannel {
+  id             String       @id @default(uuid())
+  organizationId String
+  type           ChannelType
+  name           String
+  targetAddress  String       // email address, push token, whatsapp number, webhook URL
+  configSecretId String?      // Reference to SecretReference
+  isActive       Boolean      @default(true)
+  isVerified     Boolean      @default(false)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rules          NotificationRule[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model NotificationRule {
+  id             String            @id @default(uuid())
+  organizationId String
+  channelId      String
+  severityLevels IncidentSeverity[]
+  includeBuzzAlert Boolean         @default(false)
+  triggerOnResolved Boolean        @default(true)
+  triggerOnDegraded Boolean        @default(true)
+  triggerOnSslWarning Boolean      @default(true)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channel        NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Notification {
+  id             String            @id @default(uuid())
+  incidentId     String?
+  channelType    ChannelType
+  recipient      String
+  subject        String
+  bodyPreview    String
+  deliveryStatus String            @default("DELIVERED") // DELIVERED, PENDING, FAILED
+  isBuzzAlert    Boolean           @default(false)
+  incident       Incident?         @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+}
+
+model MaintenanceWindow {
+  id             String       @id @default(uuid())
+  organizationId String
+  title          String
+  description    String?
+  startTime      DateTime
+  endTime        DateTime
+  monitorIds     String[]     @default([])
+  suppressAlerts Boolean      @default(true)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model SyntheticJourney {
+  id             String          @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  targetUrl      String
+  browserType    String          @default("chromium")
+  scheduleCron   String          @default("*/5 * * * *")
+  steps          SyntheticStep[]
+  monitors       Monitor[]
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model SyntheticStep {
+  id                 String           @id @default(uuid())
+  journeyId          String
+  orderIndex         Int
+  actionType         String           // GOTO, CLICK, TYPE, WAIT_FOR_SELECTOR, ASSERT_TEXT, SCREENSHOT
+  targetSelector     String?
+  inputValue         String?
+  isSecretCredential Boolean          @default(false)
+  secretRefId        String?
+  expectedText       String?
+  timeoutMs          Int              @default(5000)
+  journey            SyntheticJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+}
+
+model SecretReference {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  keyIdentifier  String       // e.g. "AUTH_BEARER_PROD"
+  maskedValue    String       // "••••••••82KQ"
+  encryptedCipher String      // AES-256-GCM encrypted payload
+  iv             String
+  authTag        String
+  lastRotatedAt  DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model SslCertificate {
+  id             String       @id @default(uuid())
+  monitorId      String       @unique
+  domain         String
+  issuer         String
+  validFrom      DateTime
+  validTo        DateTime
+  daysUntilExpiry Int
+  isValid        Boolean      @default(true)
+  isHostnameMatch Boolean     @default(true)
+  tlsVersion     String       @default("TLSv1.3")
+  serialNumber   String
+  monitor        Monitor      @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model StatusPage {
+  id             String       @id @default(uuid())
+  organizationId String
+  title          String
+  slug           String       @unique
+  customDomain   String?
+  logoUrl        String?
+  aboutText      String?
+  publicMonitorIds String[]   @default([])
+  showUptimeDays Int          @default(90)
+  isPublic       Boolean      @default(true)
+  theme          String       @default("dark")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model SlaPolicy {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  targetUptime   Float        @default(99.95) // 99.9, 99.95, 99.99
+  monthlyBudgetMinutes Float  @default(21.6)  // calculated for 99.95% in 30 days
+  currentBurnPercent Float    @default(4.2)
+  isBreached     Boolean      @default(false)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         String       // "USER_LOGIN", "MONITOR_CREATED", "CREDENTIAL_ROTATED", "BUZZ_TRIGGERED"
+  resourceType   String
+  resourceId     String?
+  details        Json?
+  ipAddress      String?
+  userAgent      String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+model Subscription {
+  id             String       @id @default(uuid())
+  organizationId String
+  tier           String       @default("ENTERPRISE")
+  status         String       @default("ACTIVE")
+  maxMonitors    Int          @default(500)
+  checkInterval  Int          @default(30)
+  currentPeriodEnd DateTime
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+model UsageRecord {
+  id             String       @id @default(uuid())
+  organizationId String
+  date           DateTime     @default(now())
+  totalChecks    Int          @default(0)
+  syntheticRuns  Int          @default(0)
+  buzzAlertsSent Int          @default(0)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
