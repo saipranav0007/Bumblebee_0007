@@ -28,17 +28,17 @@ export default function AddMonitorModal({ isOpen, onClose }) {
   const [step, setStep] = useState(1); // 1 to 8
 
   // Form Fields
-  const [monitorType, setMonitorType] = useState('API');
+  const [monitorType, setMonitorType] = useState('WEBSITE');
   const [name, setName] = useState('');
-  const [url, setUrl] = useState('https://api.acme.io/v1/health');
+  const [url, setUrl] = useState('');
   const [method, setMethod] = useState('GET');
-  const [headers, setHeaders] = useState('{"Authorization": "Bearer ••••••••82KQ"}');
+  const [headers, setHeaders] = useState('');
   const [requestBody, setRequestBody] = useState('');
   const [frequency, setFrequency] = useState('30s');
   const [selectedLocations, setSelectedLocations] = useState(['us-east', 'eu-central', 'ap-south']);
   const [expectedStatus, setExpectedStatus] = useState('200');
-  const [expectedText, setExpectedText] = useState('"status": "ok"');
-  const [jsonPath, setJsonPath] = useState('data.healthy == true');
+  const [expectedText, setExpectedText] = useState('');
+  const [jsonPath, setJsonPath] = useState('');
   const [retryCount, setRetryCount] = useState(3);
   const [retryDelay, setRetryDelay] = useState(3);
   const [quorumThreshold, setQuorumThreshold] = useState(2);
@@ -239,6 +239,7 @@ export default function AddMonitorModal({ isOpen, onClose }) {
                     type="url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://your-service.com/health"
                     className="w-full bg-obsidian-950 border border-obsidian-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-bee-500 font-mono"
                   />
                 </div>
@@ -250,6 +251,7 @@ export default function AddMonitorModal({ isOpen, onClose }) {
                   rows={2}
                   value={headers}
                   onChange={(e) => setHeaders(e.target.value)}
+                  placeholder='Optional JSON headers (e.g. {"Authorization": "Bearer token"})'
                   className="w-full bg-obsidian-950 border border-obsidian-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-bee-500 font-mono"
                 />
               </div>

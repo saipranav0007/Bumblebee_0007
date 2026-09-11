@@ -27,7 +27,7 @@ export function BumblebeeProvider({ children }) {
   
   // Real-time Engine State
   const [isLiveChecking, setIsLiveChecking] = useState(true);
-  const [checksCountToday, setChecksCountToday] = useState(245832);
+  const [checksCountToday, setChecksCountToday] = useState(0);
   const [lastCheckTimestamp, setLastCheckTimestamp] = useState(new Date());
   
   // Buzz Alert Modal & Notification
@@ -37,8 +37,8 @@ export function BumblebeeProvider({ children }) {
   // Organization / Auth State
   const [currentOrg, setCurrentOrg] = useState({
     id: "org-enterprise-1",
-    name: "Acme Cloud Technologies",
-    slug: "acme-cloud",
+    name: "My Organization",
+    slug: "my-org",
     plan: "Enterprise Pro",
     slaTarget: 99.95,
     region: "Global Edge"
@@ -46,10 +46,10 @@ export function BumblebeeProvider({ children }) {
 
   const [currentUser, setCurrentUser] = useState({
     id: "usr-1",
-    name: "Alex Mercer",
-    email: "alex.mercer@enterprise.io",
+    name: "Admin",
+    email: "admin@bumblebee.io",
     role: "OWNER",
-    organization: "Acme Cloud Technologies",
+    organization: "My Organization",
     twoFactor: true
   });
 
@@ -109,21 +109,24 @@ export function BumblebeeProvider({ children }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Background Live Check Simulator (every 6 seconds updates live activity and ticks counter)
+  // Background Live Check Simulator (runs continuous real-time checks when monitors exist)
   useEffect(() => {
     if (!isLiveChecking) return;
 
     const interval = setInterval(() => {
-      setChecksCountToday((prev) => prev + Math.floor(Math.random() * 4) + 1);
       setLastCheckTimestamp(new Date());
 
-      // Random micro-jitter on operational monitors to show living pulse
-      setMonitors((prevMonitors) => 
-        prevMonitors.map((m) => {
+      setMonitors((prevMonitors) => {
+        if (prevMonitors.length === 0) return prevMonitors;
+
+        setChecksCountToday((prev) => prev + prevMonitors.length);
+
+        // Random micro-jitter on operational monitors to show living pulse
+        const updated = prevMonitors.map((m) => {
           if (m.status === 'OPERATIONAL') {
             const jitter = Math.floor(Math.random() * 16) - 8;
-            const newRt = Math.max(10, m.responseTime + jitter);
-            const newSpark = [...(m.sparkline || []).slice(1), newRt];
+            const newRt = Math.max(10, (m.responseTime || 200) + jitter);
+            const newSpark = [...(m.sparkline || [200, 200, 200]).slice(1), newRt];
             return {
               ...m,
               responseTime: newRt,
@@ -132,24 +135,26 @@ export function BumblebeeProvider({ children }) {
             };
           }
           return m;
-        })
-      );
+        });
 
-      // Add live activity entry
-      const sampleActivities = [
-        { text: "Production Customer Portal SSL certificate valid (84 days remaining)", type: "success", ms: 412, location: "US-East" },
-        { text: "Global CDN Edge Anycast ping verified across 310 PoPs", type: "success", ms: 38, location: "Anycast" },
-        { text: "Redis Cache memory & key eviction metrics within normal threshold", type: "success", ms: 4, location: "US-East" },
-        { text: "Webhooks Worker queue latency 185ms (0 queued retries)", type: "success", ms: 185, location: "AP-Mumbai" },
-        { text: "Synthetic Checkout Playwright probe execution queued", type: "info", ms: 120, location: "Headless Cluster" },
-      ];
-      const pick = sampleActivities[Math.floor(Math.random() * sampleActivities.length)];
-      const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-      
-      setActivityFeed((prev) => [
-        { id: `act-${Date.now()}`, time: nowTime, ...pick },
-        ...prev.slice(0, 19)
-      ]);
+        // Add live activity entry from real monitors
+        const randomMon = updated[Math.floor(Math.random() * updated.length)];
+        const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+        
+        setActivityFeed((prev) => [
+          {
+            id: `act-${Date.now()}`,
+            time: nowTime,
+            text: `${randomMon.name} probe verified (${randomMon.url})`,
+            type: randomMon.status === 'DOWN' ? 'error' : randomMon.status === 'DEGRADED' ? 'warning' : 'success',
+            ms: randomMon.status === 'DOWN' ? 0 : randomMon.responseTime || 180,
+            location: randomMon.location || "Global Quorum"
+          },
+          ...prev.slice(0, 19)
+        ]);
+
+        return updated;
+      });
 
     }, 5000);
 
@@ -331,15 +336,18 @@ export function BumblebeeProvider({ children }) {
   const downCount = monitors.filter(m => m.status === 'DOWN').length;
   const activeIncidentsCount = incidents.filter(i => i.status !== 'RESOLVED').length;
   
-  const avgResponseTime = Math.round(
-    monitors
-      .filter(m => m.status === 'OPERATIONAL' || m.status === 'DEGRADED')
-      .reduce((acc, m) => acc + (m.responseTime || 0), 0) / (operationalCount + degradedCount || 1)
-  );
+  const activeMonitorsCount = operationalCount + degradedCount;
+  const avgResponseTime = activeMonitorsCount > 0 
+    ? Math.round(
+        monitors
+          .filter(m => m.status === 'OPERATIONAL' || m.status === 'DEGRADED')
+          .reduce((acc, m) => acc + (m.responseTime || 0), 0) / activeMonitorsCount
+      )
+    : 0;
 
-  const overallUptime = (
-    monitors.reduce((acc, m) => acc + (m.uptime || 99.9), 0) / (totalMonitored || 1)
-  ).toFixed(2);
+  const overallUptime = totalMonitored > 0
+    ? (monitors.reduce((acc, m) => acc + (m.uptime || 100), 0) / totalMonitored).toFixed(2)
+    : "100.00";
 
   return (
     <BumblebeeContext.Provider

@@ -110,54 +110,60 @@ export default function PublicStatusPage({ params }) {
           </div>
 
           <div className="space-y-4">
-            {monitors.slice(0, 6).map((m) => (
-              <div key={m.id} className="p-4 rounded-xl bg-obsidian-950 border border-obsidian-800/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${
-                      m.status === 'DOWN' ? 'bg-red-500' :
-                      m.status === 'DEGRADED' ? 'bg-amber-400' :
-                      'bg-emerald-400'
-                    }`} />
-                    <span className="text-sm font-bold text-white">{m.name}</span>
-                  </div>
-
-                  <span className={`text-xs font-mono font-bold ${
-                    m.status === 'DOWN' ? 'text-red-400' :
-                    m.status === 'DEGRADED' ? 'text-amber-400' :
-                    'text-emerald-400'
-                  }`}>
-                    {m.status === 'OPERATIONAL' ? 'Operational' : m.status}
-                  </span>
-                </div>
-
-                {/* 90-Day Visual Bar Simulation (30 segments) */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 30 }).map((_, idx) => {
-                      const isFaulty = m.status === 'DOWN' && idx >= 28;
-                      const isDegraded = m.status === 'DEGRADED' && idx >= 27;
-                      return (
-                        <div
-                          key={idx}
-                          className={`flex-1 h-6 rounded-sm transition-all hover:scale-y-125 ${
-                            isFaulty ? 'bg-red-500' :
-                            isDegraded ? 'bg-amber-400' :
-                            'bg-emerald-500/80 hover:bg-emerald-400'
-                          }`}
-                          title={`Day ${90 - idx * 3}: ${isFaulty ? 'Outage' : '100% Operational'}`}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-gray-500 font-mono">
-                    <span>90 days ago</span>
-                    <span>{m.uptime}% uptime</span>
-                    <span>Today</span>
-                  </div>
-                </div>
+            {monitors.length === 0 ? (
+              <div className="p-8 text-center bg-obsidian-950 border border-obsidian-800 rounded-xl text-xs font-mono text-gray-400">
+                All systems initialized. No public services currently exposed.
               </div>
-            ))}
+            ) : (
+              monitors.slice(0, 6).map((m) => (
+                <div key={m.id} className="p-4 rounded-xl bg-obsidian-950 border border-obsidian-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-2.5 h-2.5 rounded-full ${
+                        m.status === 'DOWN' ? 'bg-red-500' :
+                        m.status === 'DEGRADED' ? 'bg-amber-400' :
+                        'bg-emerald-400'
+                      }`} />
+                      <span className="text-sm font-bold text-white">{m.name}</span>
+                    </div>
+
+                    <span className={`text-xs font-mono font-bold ${
+                      m.status === 'DOWN' ? 'text-red-400' :
+                      m.status === 'DEGRADED' ? 'text-amber-400' :
+                      'text-emerald-400'
+                    }`}>
+                      {m.status === 'OPERATIONAL' ? 'Operational' : m.status}
+                    </span>
+                  </div>
+
+                  {/* 90-Day Visual Bar Simulation (30 segments) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 30 }).map((_, idx) => {
+                        const isFaulty = m.status === 'DOWN' && idx >= 28;
+                        const isDegraded = m.status === 'DEGRADED' && idx >= 27;
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex-1 h-6 rounded-sm transition-all hover:scale-y-125 ${
+                              isFaulty ? 'bg-red-500' :
+                              isDegraded ? 'bg-amber-400' :
+                              'bg-emerald-500/80 hover:bg-emerald-400'
+                            }`}
+                            title={`Day ${90 - idx * 3}: ${isFaulty ? 'Outage' : '100% Operational'}`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 font-mono">
+                      <span>90 days ago</span>
+                      <span>{m.uptime}% uptime</span>
+                      <span>Today</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -168,20 +174,27 @@ export default function PublicStatusPage({ params }) {
           </h3>
 
           <div className="space-y-3">
-            {incidents.map((inc) => (
-              <div key={inc.id} className="p-4 rounded-xl bg-obsidian-950 border border-obsidian-800 text-xs font-mono space-y-1.5">
-                <div className="flex items-center justify-between text-gray-400">
-                  <span className="font-bold text-white">{inc.title}</span>
-                  <span className="text-[11px] text-bee-400">{inc.startedAt}</span>
-                </div>
-                <p className="text-gray-300">
-                  {inc.errorMessage}
-                </p>
-                <div className="pt-1 text-[11px] text-gray-500">
-                  Status: <strong className={inc.status === 'RESOLVED' ? 'text-emerald-400' : 'text-amber-400'}>{inc.status}</strong>
-                </div>
+            {incidents.length === 0 ? (
+              <div className="p-6 text-center bg-obsidian-950 border border-obsidian-800 rounded-xl text-xs font-mono text-gray-400 flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>No incidents reported in the past 90 days. All systems operational.</span>
               </div>
-            ))}
+            ) : (
+              incidents.map((inc) => (
+                <div key={inc.id} className="p-4 rounded-xl bg-obsidian-950 border border-obsidian-800 text-xs font-mono space-y-1.5">
+                  <div className="flex items-center justify-between text-gray-400">
+                    <span className="font-bold text-white">{inc.title}</span>
+                    <span className="text-[11px] text-bee-400">{inc.startedAt}</span>
+                  </div>
+                  <p className="text-gray-300">
+                    {inc.errorMessage}
+                  </p>
+                  <div className="pt-1 text-[11px] text-gray-500">
+                    Status: <strong className={inc.status === 'RESOLVED' ? 'text-emerald-400' : 'text-amber-400'}>{inc.status}</strong>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

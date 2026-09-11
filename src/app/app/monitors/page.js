@@ -133,9 +133,32 @@ export default function MonitorsPage() {
       {/* Monitors Cards / Table */}
       <div className="space-y-3">
         {filteredMonitors.length === 0 ? (
-          <div className="p-12 text-center bg-obsidian-900/60 border border-obsidian-800 rounded-2xl text-gray-400 font-mono text-sm">
-            No monitors matched filter "{filter}" with search query "{search}".
-          </div>
+          monitors.length === 0 ? (
+            <div className="p-12 text-center bg-obsidian-900/90 border border-obsidian-800 rounded-2xl shadow-xl space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-bee-500/10 border border-bee-500/30 text-bee-400 mx-auto flex items-center justify-center shadow-glow-amber">
+                <Radio className="w-8 h-8 animate-pulse" />
+              </div>
+              <div className="max-w-md mx-auto space-y-1">
+                <h3 className="text-lg font-bold text-white">No Monitors Configured Yet</h3>
+                <p className="text-xs text-gray-400 font-mono">
+                  Get started by adding your first service, API endpoint, or website watchdog to monitor uptime and latency from 4 global regions.
+                </p>
+              </div>
+              <div>
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="inline-flex items-center gap-2 bg-bee-500 hover:bg-bee-400 text-black font-bold text-xs px-5 py-2.5 rounded-xl shadow-glow-amber transition-all hover:scale-105"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Add Your First Monitor</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-obsidian-900/60 border border-obsidian-800 rounded-2xl text-gray-400 font-mono text-sm">
+              No monitors matched filter "{filter}" with search query "{search}".
+            </div>
+          )
         ) : (
           filteredMonitors.map((m) => (
             <div

@@ -137,11 +137,10 @@ export default function IncidentCenterPage() {
               })
             )}
           </div>
-
         </div>
 
         {/* Right Column: Detailed Incident Investigation View (7 cols) */}
-        {selectedIncident && (
+        {selectedIncident ? (
           <div className="lg:col-span-7 bg-obsidian-900 border border-obsidian-700 rounded-2xl p-6 shadow-2xl space-y-6">
             
             {/* Header / Actions */}
@@ -212,7 +211,7 @@ export default function IncidentCenterPage() {
                     href="/app/intelligence"
                     className="text-[11px] font-mono text-bee-400 hover:text-bee-300 flex items-center gap-1"
                   >
-                    Full Analysis <ArrowRight className="w-3 h-3" />
+                    Full Analysis <ArrowRight className="w-3" />
                   </Link>
                 </div>
 
@@ -251,6 +250,25 @@ export default function IncidentCenterPage() {
               </div>
             </div>
 
+          </div>
+        ) : (
+          <div className="lg:col-span-7 bg-obsidian-900/80 border border-obsidian-800 rounded-2xl p-10 text-center shadow-xl space-y-4 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-glow-operational">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div className="max-w-md space-y-1">
+              <h3 className="text-lg font-bold text-white">All Systems Operational</h3>
+              <p className="text-xs text-gray-400 font-mono">
+                No active or historical outages detected. Bumblebee multi-region quorum sentinel is ready to catch and alert on failures.
+              </p>
+            </div>
+            <button
+              onClick={() => triggerBuzzAlert()}
+              className="mt-2 inline-flex items-center gap-2 bg-red-950/80 hover:bg-red-900 border border-red-500/40 text-red-300 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-glow-critical"
+            >
+              <Flame className="w-3.5 h-3.5 text-red-400" />
+              <span>Simulate Critical Outage / Test Buzz 🐝</span>
+            </button>
           </div>
         )}
 
